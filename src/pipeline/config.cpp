@@ -70,6 +70,7 @@
 #include "fused/ginterp/ginterp_stage.h"
 #include "fused/bitplane_rze/bitplane_rze_stage.h"
 #include "fused/adaptive_lorenzo/adaptive_lorenzo_stage.h"
+#include "fused/quant_adaptive_lorenzo/quant_adaptive_lorenzo_stage.h"
 
 #include <algorithm>
 #include <cstring>
@@ -1297,7 +1298,7 @@ static const StageEntry kStageRegistry[] = {
     { "Lorenzo",      StageType::LORENZO,      addLorenzoStage,      saveLorenzoStage,      "modules/predictors/lorenzo" },
     { "LorenzoQuant", StageType::LORENZO_QUANT, addLorenzoQuantStage, saveLorenzoQuantStage, "modules/fused/lorenzo_quant" },
     { "AdaptiveLorenzo", StageType::ADAPTIVE_LORENZO, addAdaptiveLorenzoStage, saveAdaptiveLorenzoStage, "modules/fused/adaptive_lorenzo" },
-    { "FusedQuantAdaptiveLorenzo", StageType::FUSED_QUANT_ADAPTIVE_LORENZO, addFusedQuantAdaptiveLorenzoStage, saveFusedQuantAdaptiveLorenzoStage, "modules/fused/adaptive_lorenzo" },
+    { "FusedQuantAdaptiveLorenzo", StageType::FUSED_QUANT_ADAPTIVE_LORENZO, addFusedQuantAdaptiveLorenzoStage, saveFusedQuantAdaptiveLorenzoStage, "modules/fused/quant_adaptive_lorenzo" },
     { "Quantizer",    StageType::QUANTIZER,    addQuantizerStage,    saveQuantizerStage,    "modules/quantizers/quantizer" },
     { "Bitshuffle",   StageType::BITSHUFFLE,   addBitshuffleStage,   saveBitshuffleStage,   "modules/shufflers/bitshuffle" },
     { "RZE",          StageType::RZE,          addRZEStage,          saveRZEStage,          "modules/coders/rze" },

@@ -386,6 +386,7 @@ inline std::string stageTypeToString(StageType type) {
         case StageType::GPULZ:  return "GPULZ";
         case StageType::LOG_TRANSFORM: return "LogTransform";
         case StageType::ADAPTIVE_LORENZO: return "AdaptiveLorenzo";
+        case StageType::FUSED_QUANT_ADAPTIVE_LORENZO: return "FusedQuantAdaptiveLorenzo";
         case StageType::CDF97: return "CDF97";
         case StageType::SPECK2D: return "SPECK2D";
         case StageType::CDF97_OUTLIER_CORRECT: return "Cdf97OutlierCorrect";

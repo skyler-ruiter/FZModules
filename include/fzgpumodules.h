@@ -41,6 +41,7 @@
 #include "structural/tupl/tupl_stage.h"
 #include "structural/merge/merge_stage.h"
 #include "fused/adaptive_lorenzo/adaptive_lorenzo_stage.h"
+#include "fused/quant_adaptive_lorenzo/quant_adaptive_lorenzo_stage.h"
 #include "fused/lorenzo_quant/lorenzo_quant.h"
 #include "quantizers/quantizer/quantizer.h"
 #include "transforms/zigzag/zigzag_stage.h"
