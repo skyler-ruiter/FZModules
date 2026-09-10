@@ -362,7 +362,7 @@ OpenMP host code, so the device kernels, the one-thread-per-block layout, the CU
 `DeviceScan` per-block offsets, the FZM archive layout, and all `MemoryPool`
 scaffolding are FZGPUModules code. The archive **is not byte-compatible** with
 the reference SZp container. hZCCL's compressed-domain collectives are not
-implemented (see `docs/szp_homomorphic_collectives.md`). The MIT copyright notice
+implemented. The MIT copyright notice
 is reproduced verbatim below.
 
 **Papers:**

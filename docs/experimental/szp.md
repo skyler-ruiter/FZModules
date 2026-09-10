@@ -164,8 +164,7 @@ SZp is the container hZCCL uses to run **collective communication in the
 compressed domain** (add/reduce on compressed buffers without full
 decompression). That capability is **out of scope for this stage** — it is a
 separate `HomomorphicOp` interface, not a `Stage` (a `Stage` is a single-buffer
-transform). See the future-work scoping note
-`docs/szp_homomorphic_collectives.md`.
+transform). It remains future work and is not scoped here.
 
 ## Prior work
 

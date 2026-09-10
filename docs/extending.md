@@ -25,7 +25,5 @@ Everything involved in adding a new stage.
 Working notes for stages whose representation is not a plain linear chain. These
 are specifications and scoping documents, not user-facing stage references.
 
-- \subpage szx_conditional_representation — SZx as a conditional per-block
-  representation, and why it cannot be decomposed into ordinary stages.
 - \subpage experimental_szp — `SZpStage`, the quarantined GPU reference
   compressor, and the supported `szp_composed.toml` chain that replaces it. -->

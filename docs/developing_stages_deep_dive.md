@@ -19,8 +19,7 @@ sections as authoritative.
       new primitive. (Case study: SZp was retired to a composed
       `Quantizer → Lorenzo → AdaptiveBitpack` chain rather than kept as a
       monolithic stage; SZx could not be, because of its per-block conditional
-      representation. Cross-link: `docs/szx_conditional_representation.md`,
-      `docs/experimental/szp.md`.)
+      representation. Cross-link: `docs/experimental/szp.md`.)
 - [ ] Stage vs. structural node vs. policy-on-an-existing-stage (e.g. a coder
       variant is often a `setX()` flag, not a new class).
 - [ ] The "whole compressor as a stage" anti-pattern and when it's justified
