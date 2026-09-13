@@ -14,9 +14,9 @@ Every specializable stage spans two layers that must agree exactly:
 1. **Host declaration** (`Stage` virtuals in the stage's `.h`) — *what* device op
    this stage maps to, its role, geometry, and runtime parameter bytes.
 2. **Device policy** (a small POD in a harness `.cuh`) — the *how*: the actual
-   register/shared-memory kernel code, carrying **both** the forward and inverse
-   methods. Forward and inverse are two methods on one policy class, so a stage
-   that fuses on compress can fuse on decompress from the same declaration.
+   register/shared-memory kernel code. A policy may provide both forward and
+   inverse methods, but the stage declares inverse eligibility separately and the
+   inverse harness must support that role and chain shape.
 
 The host packs a parameter blob whose layout the device op `reinterpret_cast`s, so
 the POD `Params` struct is **shared verbatim** between host and device (see
@@ -48,6 +48,9 @@ composed of ops that all share one strategy:
 | `ChunkCooperative` | one CTA owns a compatible size byte-chunk, intermediates in shared memory, `__syncthreads` between ops (LC / PFPL) |
 
 The rest of this guide works the **warp-register** path end to end. The chunk-cooperative path uses the same declaration surface with a different harness.
+The current warp harness is generic over declared predictors, transforms, and coders
+within a `float32` input / `int32` code representation; those data types are checked
+as part of strategy matching.
 
 ---
 
@@ -86,7 +89,7 @@ Conventions:
 - **The `inv2eb` slot convention.** Every warp predictor's `Params` begins with
   `float inv2eb` at offset 0. The predictor stage cannot know the error bound (the
   quantizer owns it), so it packs `0` there; the runner overwrites those 4 bytes
-  with `1/(2·abs_eb)` resolved from the primed quantizer bound before uploading. The
+  from the Map head's `getFusedForwardQuantStep()` contract after priming. The
   quantizer is absorbed into the predictor (it quantizes inline in `delta()`), which
   is why the Map/quant stage declares op `"LinearQuant"` with empty params.
 - **elems_per_lane** (= `block_size / 32`) is the harness's compile-time template
@@ -152,6 +155,7 @@ inverse** later reads — must be established explicitly. These `Stage` hooks
 | Hook | Who overrides it | Why |
 |---|---|---|
 | `primeFusedForwardState(ctx)` | Quantizer | Run the value-range scan / bound resolution the fused kernel needs (and the inverse reads back). Called once per group member before codegen. |
+| `getFusedForwardQuantStep()` | linear quantizer | Provide the resolved quantization step to the generic warp runner without a concrete-stage cast. |
 | `setFusedArchiveResult(archive, orig)` | variable-length coders | Report archive + original sizes so the coder's inverse can size its output (else it falls back to the compressed size and overruns). |
 | `setFusedInverseResult(bytes)` | inverse tail (quant) | Publish the reconstructed byte count for output-size refinement. |
 | `setFusedSideOutput(port, bytes)` | outlier-producing quant | Report bytes written to an escaping side port (e.g. an outlier list) so `serializeHeader` matches the fused result. |
@@ -247,8 +251,9 @@ a dequant policy, the same way a predictor is added.
   `back` is Cooperative. No concrete types named.
 - **Runner** (`runWarpRegister`): primes each stage, then builds
   `WarpFusionSpec{predictor = the BlockLocal op's name, coder = the Cooperative op's
-  name, transforms = interior op names, elems_per_lane}`, patches `inv2eb` from the
-  primed quant bound, and calls `launchNvrtcWarpFused`.
+  name, transforms = interior op names, elems_per_lane}`, obtains the quantization
+  step and reports coder state through generic `Stage` hooks, patches `inv2eb`, and
+  calls `launchNvrtcWarpFused`. It does not downcast the forward stages.
 
 The inverse pair (`matchesWarpRegisterInverse` / `runWarpRegisterInverse`) is the
 same, over `getInverseFusionSpec`/`getInverseFusedOp`, with roles reversed

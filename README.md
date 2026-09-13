@@ -19,7 +19,7 @@ FZGPUModules is a CUDA library for building composable, high-throughput compress
 
 **Key properties:**
 - **Modular** — mix and match stages (Lorenzo, G-Interp, Quantizer, ADM, RLE, RZE, RRE, Bitshuffle, TUPL, Huffman, ANS, …)
-- **Pipeline Specialization** — at `finalize()` the library compiles, caches, and constructs a new optimized pipeline automatically that is equivalent to the original DAG
+- **Pipeline Specialization** — `finalize()` recognizes supported subgraphs and binds declaration-driven specialization strategies; generated kernels are compiled and cached on first use
 - **High throughput** — parallel level execution, persistent scratch, stream-ordered allocation
 - **Memory-efficient** — MINIMAL and PREALLOCATE strategies; buffer coloring to alias non-overlapping allocations
 - **File format** — FZM format with CRC32 checksums and full stage config serialization

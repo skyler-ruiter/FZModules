@@ -45,11 +45,14 @@ non-default stream, and every stage in the pipeline to be graph-compatible,
 
 ### Pipeline Specialization {#pipeline_specialization}
 
-FZGPUModules' finalize-time optimization layer. You build a pipeline (a modular
-DAG, one kernel per stage) and the library, at `finalize()`, inspects that DAG and
-replaces the staged execution with an optimized implementation. It changes how the
-pipeline runs, but not the output — the DAG, the reconstruction, and the compressed
-archive bytes are all identical to the staged run.
+FZGPUModules' runtime optimization layer. You build a pipeline (a modular DAG,
+one kernel per stage), and `finalize()` identifies compatible subgraphs and binds
+their specialization strategies. The first execution generates and compiles the
+corresponding kernels with NVRTC; later executions reuse the cache. Specialization
+changes execution while retaining the declared DAG and reconstruction semantics.
+Deterministic paths also retain the staged archive bytes. Paths with atomically
+appended side outputs may order equivalent records differently and are validated by
+their reconstructed result.
 
 Kernel fusion is the main strategy it applies today (compatible stages collapsed
 into a single kernel, keeping intermediates in registers/shared memory instead of
@@ -58,8 +61,9 @@ round-tripping each one through DRAM). The name is deliberately broader than
 in-kernel optimizations such as single-pass decoupled-lookback and an NVRTC code
 generator. Auto currently admits implementations through an evidence-gated
 registry and resolves overlaps by launches removed; it does not yet evaluate a
-predictive per-input performance cost model. Further runtime optimizations fit
-under the same umbrella.
+general predictive per-input performance cost model. The warp strategy does choose
+among its supported execution paths per call using bounded size/rate rules. Further
+runtime optimizations fit under the same umbrella.
 
 Specialization and CUDA Graph mode are mutually exclusive (see above) — pick one.
 
@@ -72,7 +76,7 @@ AdaptiveBitpack`) that inter-stage traffic is most of the runtime. Specializatio
 removes it by fusing the chain into one kernel — which cuts both the **time**
 (no DRAM round-trip for intermediates) and the **memory** (those intermediate
 buffers are never allocated; see "What it guarantees" below). Ratio, PSNR, and
-NRMSE are unchanged (the archive is byte-identical).
+NRMSE are unchanged; deterministic specializations are also archive-byte-identical.
 
 #### Enabling it
 
@@ -119,8 +123,10 @@ FZ_SPECIALIZE=auto fzgmod-cli -c examples/presets/szp_composed.toml \
 
 #### What it guarantees
 
-- **Byte-identical.** A specialized compress or decompress produces the exact same bytes
-  as the staged version.
+- **Equivalent results.** Deterministic specializations produce the exact same
+  archive or reconstruction bytes as staged execution. Specializations with
+  nondeterministically ordered side outputs preserve reconstruction and the error
+  bound, although their archive bytes may differ in record order.
 - **Both directions, independently.** Compress and decompress are specialized
   separately under the same policy; a pipeline may get one, both, or neither.
 - **Silent, safe fallback.** Any chain without a matching auto-enabled implementation
@@ -211,9 +217,10 @@ cell rather than silently falling back.
 #### Specialization strategies
 
 Two execution models are registered. You don't choose between them — the planner
-routes each chain to the one that fits its geometry. Both are byte-identical to
-staged and generated at runtime via NVRTC (so only the first compress of a given
-chain shape pays the one-time JIT).
+routes each chain to the one that fits its geometry. Both are generated at runtime
+via NVRTC. The first use of a new generated shape pays the one-time JIT cost; use a
+warmup call before measuring repeated-use performance. The performance results in
+this guide concern warm, cached execution unless stated otherwise.
 
 | Strategy | Execution model | Pipelines it covers |
 |---|---|---|

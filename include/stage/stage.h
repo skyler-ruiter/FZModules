@@ -342,6 +342,14 @@ public:
     virtual size_t getFusedInverseElementCount() const { return 0; }
 
     /**
+     * Quant (Map) forward hook: the linear quantization step (2*abs_eb) used by
+     * a warp-register harness. The runner reads this after
+     * primeFusedForwardState(), so data-dependent bounds such as NOA are
+     * resolved. Default 0 means the stage does not provide this scalar contract.
+     */
+    virtual double getFusedForwardQuantStep() const { return 0.0; }
+
+    /**
      * Quant (Map) inverse hook: the linear dequant step (2*abs_eb) the warp
      * inverse harness multiplies reconstructed codes by, so a generic inverse
      * runner never downcasts the quantizer stage for it. Linear-quant only —
@@ -381,8 +389,8 @@ public:
 
     /**
      * Tail-coder hook: a fused runner that produced this stage's archive without
-     * calling `execute()` reports the archive size and the ORIGINAL (uncompressed)
-     * input size, so the stage's inverse can size its output buffer. Without it a
+     * calling `execute()` reports the archive size and the original uncompressed
+     * input size of that coder, so its inverse can size its output buffer. Without it a
      * variable-length coder's inverse falls back to the compressed size and its
      * decode overruns (see CN-CHUNK-WIRE). Distinct from any `setFusedResult`
      * overload to avoid colliding with unrelated `(size_t,size_t)` signatures.

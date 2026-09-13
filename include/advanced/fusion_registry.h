@@ -13,14 +13,14 @@
  * @brief Registry of fused implementations, keyed by the shape of a fusion group.
  *
  * The fusion planner (fusion_planner.h) finds maximal legality domains. The
- * installer queries this registry for each contiguous subspan: "is there a
- * fused kernel for this exact chain?". An eligible hit lets
- * the DAG executor run one fused kernel in place of the group's staged
+ * installer queries this registry for each contiguous subspan: "does a registered
+ * specialization strategy accept these stage declarations?". An eligible hit lets
+ * the DAG executor generate and run a fused kernel in place of the group's staged
  * execute()s; misses and unselected overlaps remain staged. Normal Auto selection
- * considers only auto-enabled implementations: registration is the current
- * evidence gate, not a predictive per-input profitability test. Adding a new fused
- * configuration means registering one `FusedImpl` (later: NVRTC-generated ones
- * keyed by fingerprint).
+ * considers only auto-enabled strategies: registration is the current evidence
+ * gate, not a general predictive per-input profitability test. Compatible device
+ * operations can form new generated chains within a strategy without adding a
+ * per-chain registry entry.
  *
  * See docs/codebase_notes.md CN-FUSE-PROOF / CN-FUSE-PLAN.
  */
@@ -88,7 +88,7 @@ struct FusedImpl {
     /// Eligible for normal `FusionPolicy::Auto` selection. False keeps a legal
     /// implementation available only under `Force` while it is being evaluated.
     bool auto_enabled;
-    /// True if this impl handles `group` exactly (types + relevant config).
+    /// True if this strategy handles the group's declarations and geometry.
     bool   (*matches)(const std::vector<Stage*>& group);
     /// Run the fused compress; return the archive length written to d_output.
     size_t (*run)(const FusedRunContext& ctx);

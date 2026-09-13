@@ -9,7 +9,7 @@ pipelines. Each pipeline is a directed acyclic graph (DAG) of stages, connected 
 
 **Key properties:**
 - **Modular** — mix and match stages (Lorenzo, G-Interp, Quantizer, ADM, RLE, RZE, RRE, Bitshuffle, TUPL, Huffman, ANS, …)
-- **[Pipeline Specialization](#mainpage_specialization)** — at `finalize()` the library compiles, caches, and constructs a new optimized pipeline automatically that is equivalent to the original DAG
+- **[Pipeline Specialization](#mainpage_specialization)** — `finalize()` recognizes supported subgraphs and binds declaration-driven specialization strategies; generated kernels are compiled and cached on first use
 - **High throughput** — parallel level execution, persistent scratch, stream-ordered allocation
 - **Memory-efficient** — MINIMAL and PREALLOCATE strategies; buffer coloring to alias non-overlapping allocations
 - **File format** — FZM format with CRC32 checksums and full stage config serialization
@@ -161,13 +161,15 @@ See `examples/ownership_example.cpp` for a minimal end-to-end example.
 
 ### Pipeline Specialization {#mainpage_specialization}
 
-**Pipeline Specialization** is the
-finalize-time layer that inspects that DAG and, where a fast path exists,
-transparently swaps the staged execution for an optimized *specialized*
-implementation: compatible stages fused into a single kernel (keeping
-intermediates in registers/shared memory), single-pass decoupled-lookback, and
-NVRTC-generated code — **without changing the DAG, the results, or the archive
-bytes**. It runs on both compress and decompress.
+**Pipeline Specialization** inspects the DAG at `finalize()` and binds a supported
+execution strategy to each eligible subgraph. On first use, the strategy generates
+the kernel from the stages' declared device operations, compiles it with NVRTC, and
+caches it for reuse. Current strategies fuse compatible stages into one kernel,
+keep intermediates in registers or shared memory, and use optimized cross-block
+prefix sums where applicable. The declared DAG and reconstruction semantics remain
+unchanged. Deterministic paths also preserve the staged archive bytes; paths with
+nondeterministically ordered side outputs preserve their decoded result instead.
+Compression and decompression are matched independently.
 
 Turn it on with one call (default is `Off`):
 
@@ -176,7 +178,7 @@ fz::Pipeline p(input_bytes, fz::MemoryStrategy::PREALLOCATE, 4.0f);
 // ... addStage, connect ...
 p.setSpecializationPolicy(fz::SpecializationPolicy::Auto);   // opt in
 p.finalize();
-p.compress(d_input, input_bytes, &d_comp, &comp_sz, stream);  // fused where profitable
+p.compress(d_input, input_bytes, &d_comp, &comp_sz, stream);  // specialized where supported
 ```
 
 or at runtime with `FZ_SPECIALIZE=auto`, or `--report-json` from the CLI to see

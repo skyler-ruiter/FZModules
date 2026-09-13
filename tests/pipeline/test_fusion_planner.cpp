@@ -1911,6 +1911,7 @@ TEST(FusionPlanner, WarpInverseStagesDeclareOps) {
         EXPECT_TRUE(op.valid());
         EXPECT_EQ(op.strategy, FusionStrategy::WarpRegister);
         EXPECT_EQ(op.op_name, "LinearDequant");
+        EXPECT_NEAR(q.getFusedForwardQuantStep(), 2.0 * 1e-3, 1e-9);
         EXPECT_NEAR(q.getFusedInverseDequantStep(), 2.0 * 1e-3, 1e-9);
     }
     // Non-linear (outlier/zigzag) quant does NOT declare a warp inverse op.

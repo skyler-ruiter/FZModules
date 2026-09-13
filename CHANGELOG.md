@@ -10,6 +10,7 @@ Version numbers follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased] — 2.0.0
 
 ### Changed
+- Removed the remaining concrete quantizer and coder casts from the generic warp-register forward runner; stages now provide the quantization step and archive-size handoff through `Stage` specialization contracts.
 - **Moved `experimental/` under `modules/experimental/`** so the quarantined
   reference-compressor tree reads unambiguously as an experimental *module*
   set, not an experimental *runtime* feature (which is how "experimental" is

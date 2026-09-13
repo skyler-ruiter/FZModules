@@ -338,6 +338,9 @@ public:
     double getFusedInverseDequantStep() const override {
         return 2.0 * static_cast<double>(computed_abs_eb_);
     }
+    double getFusedForwardQuantStep() const override {
+        return 2.0 * static_cast<double>(computed_abs_eb_);
+    }
 
     /// Fused-op identity for the chunk-cooperative harness: the inplace+zigzag
     /// ABS/NOA float quant maps to the `QuantInplaceZigzag` Map op. Params are

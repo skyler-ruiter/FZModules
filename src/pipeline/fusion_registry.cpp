@@ -11,6 +11,7 @@
 #include "fused/fused_block/nvrtc_warp_fusion.h"
 #include "fused/chunk_fusion/nvrtc_chunk_fusion.h"
 
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -36,6 +37,12 @@ namespace {
 //    analogue of the chunk chain.
 bool matchesWarpRegister(const std::vector<Stage*>& g) {
     if (g.size() < 3) return false;                // Quant -> Predictor -> ... -> Coder
+    // The current warp harness loads float32 values and carries int32 codes.
+    // Make that strategy boundary explicit here instead of relying on concrete
+    // stage classes or unchecked casts in the runner.
+    if (static_cast<DataType>(g.front()->getInputDataType(0)) != DataType::FLOAT32 ||
+        static_cast<DataType>(g.back()->getInputDataType(0))  != DataType::INT32)
+        return false;
     for (Stage* s : g) {
         const FusedOpDecl op = s->getFusedOp();
         if (!op.valid() || op.strategy != FusionStrategy::WarpRegister) return false;
@@ -59,14 +66,17 @@ size_t runWarpRegister(const FusedRunContext& ctx) {
                                 static_cast<fz::stream_t>(ctx.stream) };
     for (Stage* s : g) s->primeFusedForwardState(pc);
 
-    auto* q = static_cast<QuantizerStage<float, uint32_t>*>(g.front());
-    auto* a = static_cast<AdaptiveBitpackStage<int32_t>*>(g.back());
     // Resolved absolute bound after priming — ABS: = error_bound; NOA: = eb*range
     // (padding-excluded, see primeComputedAbsEb). The fused kernel quantizes with this
     // and the reused inverse reconstructs with the same computed_abs_eb_, so ABS and
     // NOA share one uniform-step fused path.
-    const float eb     = static_cast<float>(q->getComputedAbsEb());
-    const float inv2eb = 1.0f / (2.0f * eb);
+    const double quant_step = g.front()->getFusedForwardQuantStep();
+    if (!(quant_step > 0.0) || !std::isfinite(quant_step)) {
+        throw std::runtime_error(
+            "warp-register specialization requires its Map head to expose a "
+            "finite positive quantization step");
+    }
+    const float inv2eb = static_cast<float>(1.0 / quant_step);
 
     // Build the warp spec + params blob from the stages' own declarations — no
     // per-predictor dispatch. Chain positions: g[0] quant (absorbed into the predictor
@@ -88,17 +98,22 @@ size_t runWarpRegister(const FusedRunContext& ctx) {
 
     // n_ab: the predictor's padded block-covering count, or the input element count
     // when it declares 0 (1-D needs no padding).
-    const size_t n_ab = decl.n_ab ? decl.n_ab : ctx.input_bytes / sizeof(float);
+    const size_t input_element_bytes = getDataTypeSize(
+        static_cast<DataType>(g.front()->getInputDataType(0)));
+    const size_t n_ab = decl.n_ab ? decl.n_ab : ctx.input_bytes / input_element_bytes;
     const size_t archive_bytes = fused::launchNvrtcWarpFused(
         spec, static_cast<const float*>(ctx.d_input), n_ab,
         blob.data(), blob.size(),
         static_cast<uint8_t*>(ctx.d_output), ctx.pool, static_cast<fz::stream_t>(ctx.stream),
         ctx.execution_path);
 
-    // The archive masquerades as the staged AdaptiveBitpack output: set the tail
-    // stage's execute-time state (num_elements = the padded tile-major count) so
-    // buildHeader() and the DAG's output sizing see a normal AB result.
-    a->setFusedResult(n_ab, archive_bytes);
+    // Report the result through the generic tail-coder contract. The coder's
+    // logical input is the predictor's padded code sequence, so derive its byte
+    // width from the declared stage input type rather than naming a coder class.
+    const size_t coder_element_bytes = getDataTypeSize(
+        static_cast<DataType>(g.back()->getInputDataType(0)));
+    g.back()->setFusedArchiveResult(
+        archive_bytes, n_ab * coder_element_bytes);
     return archive_bytes;
 }
 
